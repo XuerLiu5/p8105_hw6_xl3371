@@ -9,6 +9,8 @@ output: github_document
 library(tidyverse)
 library(purrr)
 library(broom)
+library(ggplot2)
+library(modelr)
 
 knitr::opts_chunk$set(
   echo = TRUE, 
@@ -101,5 +103,63 @@ calculate_and_print_ci(boot_results, "beta_product")
 ```
 
 ## Problem 3
+```{r, message=FALSE}
+birthweight_df <- 
+  read_csv("./data/birthweight.csv", na = c("", "NA", "Unknown")) %>% 
+  janitor::clean_names() %>%
+  mutate(
+    babysex = as.factor(babysex),
+    frace = as.factor(frace),
+    malform = as.factor(malform),
+    mrace = as.factor(mrace)
+  ) 
 
+# check for missing data
+sum(is.na(birthweight_df))
+```
 
+```{r}
+library(ggplot2)
+my_model <- lm(bwt ~ gaweeks + blength + bhead + smoken + ppbmi, data=birthweight_df)
+
+birthweight_df %>% 
+  add_predictions(my_model) %>% 
+  add_residuals(my_model) %>% 
+  ggplot(
+    aes( x = pred, y = resid)) + 
+    geom_point(alpha = 0.5) +
+  labs(
+    title = "Model residuals against fitted values",
+    x = "Fitted Values",
+    y = "Residuals"
+      )
+```
+
+```{r}
+library(caret)
+
+# Model 1
+model1 <- lm(bwt ~ blength + gaweeks, data=birthweight_df)
+
+# Model 2
+model2 <- lm(bwt ~ bhead * blength * babysex, data=birthweight_df)
+
+# Function to calculate cross-validated prediction error
+cv_error <- function(my_model, data) {
+  cv <- trainControl(method = "cv", number = 10)
+  train(bwt ~ ., data = data, method = "lm", trControl = cv)$results$RMSE
+}
+
+# Cross-validated prediction errors
+error_original <- cv_error(my_model, birthweight_df)
+error_model1 <- cv_error(model1, birthweight_df)
+error_model2 <- cv_error(model2, birthweight_df)
+
+# Comparison
+error_comparison <- data.frame(Original = error_original, Model1 = error_model1, Model2 = error_model2)
+
+error_comparison
+
+```
+
+Model 1, which is the one using length at birth and gestational age as predictors (main effects only), has the lowest RMSE, which suggests that it is the best model for predicting birthweight among the three models, based on the cross-validated prediction error.
