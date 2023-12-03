@@ -118,16 +118,31 @@ birthweight_df <-
 sum(is.na(birthweight_df))
 ```
 
+
+In my model, I will include `gaweeks`, `blength`, `bhead`, `smoken`, and `ppbmi` with the reasons based on a hypothesized structure for the factors that underly birthweight:
+
+* Gestational age in weeks (`gaweeks`): the number of weeks they spend developing before birth is closely linked to their weight at birth.
+* Baby’s length at birth (`blength`): longer babies have had more time to grow and tend to weigh more.
+* Baby’s head circumference at birth (`bhead`): a larger head circumference can correlate with a higher birth weight, as it indicates good brain and skull development, which contributes significantly to total birth weight.
+* Average number of cigarettes smoked per day during pregnancy (`smoken`): smoking during pregnancy can lead to lower birth weight babies.
+* Mother’s pre-pregnancy BMI (`ppbmi`): A mother's pre-pregnancy body mass index is indicative of her nutritional and health status before pregnancy, which can impact fetal growth.
+
 ```{r}
-library(ggplot2)
 my_model <- lm(bwt ~ gaweeks + blength + bhead + smoken + ppbmi, data=birthweight_df)
 
+summary(my_model)
+```
+
+Based on summary, all estimates I chose are significant.
+
+
+```{r, message=FALSE}
 birthweight_df %>% 
   add_predictions(my_model) %>% 
   add_residuals(my_model) %>% 
-  ggplot(
-    aes( x = pred, y = resid)) + 
-    geom_point(alpha = 0.5) +
+  ggplot(aes( x = pred, y = resid)) + 
+  geom_point(alpha = 0.5) +
+  geom_smooth() +
   labs(
     title = "Model residuals against fitted values",
     x = "Fitted Values",
@@ -138,10 +153,10 @@ birthweight_df %>%
 ```{r}
 library(caret)
 
-# Model 1
+# Model 1: main effect
 model1 <- lm(bwt ~ blength + gaweeks, data=birthweight_df)
 
-# Model 2
+# Model 2: three-way interaction
 model2 <- lm(bwt ~ bhead * blength * babysex, data=birthweight_df)
 
 # Function to calculate cross-validated prediction error
